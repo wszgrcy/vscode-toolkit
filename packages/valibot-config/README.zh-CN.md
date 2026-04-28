@@ -27,11 +27,6 @@ npm install @cyia/vscode-valibot-config
 pnpm add @cyia/vscode-valibot-config
 ```
 
-## 要求
-
-- VS Code 扩展环境（需要 `vscode` 模块）
-- 依赖项：`valibot`, `static-injector`
-
 ## 使用示例
 
 ### 基础用法
@@ -57,16 +52,16 @@ const proxy = createConfig(configSchema, 'myExtension');
 const config = proxy.root();
 
 // 读取值（以函数形式调用）
-console.log(config.enabled());        // true
-console.log(config.timeout());        // 1000
-console.log(config.nested.host());    // "localhost"
+console.log(config.enabled()); // true
+console.log(config.timeout()); // 1000
+console.log(config.nested.host()); // "localhost"
 
 // 设置值
 await config.enabled.set(false);
 await config.timeout.set(2000);
 
 // 使用函数更新
-await config.theme.update((current) => current === 'dark' ? 'light' : 'dark');
+await config.theme.update((current) => (current === 'dark' ? 'light' : 'dark'));
 
 // 嵌套对象
 await config.nested.set({ host: 'api.example.com', port: 8080 });
@@ -76,11 +71,11 @@ await config.nested.set({ host: 'api.example.com', port: 8080 });
 
 每个配置属性返回一个包含以下方法的信号：
 
-| 方法 | 描述 |
-|------|------|
-| `signal()` | 获取当前值 |
+| 方法                | 描述                          |
+| ------------------- | ----------------------------- |
+| `signal()`          | 获取当前值                    |
 | `signal.set(value)` | 设置新值（更新 VS Code 设置） |
-| `signal.update(fn)` | 使用函数更新值 |
+| `signal.update(fn)` | 使用函数更新值                |
 
 ### JSON Schema 生成
 
@@ -89,16 +84,13 @@ await config.nested.set({ host: 'api.example.com', port: 8080 });
 ```typescript
 import * as v from 'valibot';
 import { valibotToVscodeConfig } from '@cyia/vscode-valibot-config';
-import { description, metadata, asVirtualGroup } from '@piying/valibot-visit';
+import { asVirtualGroup } from '@piying/valibot-visit';
 
 const schema = v.object({
-  name: v.pipe(
-    v.string(),
-    description('用户名'),
-  ),
+  name: v.pipe(v.string(), v.description('用户名')),
   role: v.pipe(
     v.picklist(['admin', 'user']),
-    metadata({
+    v.metadata({
       enumOptions: [
         { label: '管理员', description: '完全访问权限' },
         { label: '普通用户', description: '有限访问权限' },
@@ -115,17 +107,53 @@ const jsonSchema = valibotToVscodeConfig(schema, {
 });
 ```
 
+### 写入 `package.json`
+
+使用 `writePackageJsonConfig` 将配置自动写入 VS Code 扩展的 `package.json` 文件：
+
+```typescript
+import * as v from 'valibot';
+import { writePackageJsonConfig } from '@cyia/vscode-valibot-config';
+
+const schema = v.object({
+  apiKey: v.string(),
+  maxRetries: v.pipe(v.number(), v.minValue(1), v.maxValue(10)),
+});
+
+// 写入文件
+const writer = writePackageJsonConfig(schema, {
+  title: '我的扩展配置',
+  prefix: 'myExtension',
+});
+await writer('./package.json');
+// 生成的 package.json 中会自动添加:
+// "contributes": {
+//   "configuration": {
+//     "title": "我的扩展配置",
+//     "properties": {
+//       "myExtension.apiKey": { "type": "string" },
+//       "myExtension.maxRetries": { "type": "number" }
+//     }
+//   }
+// }
+
+// 或者直接操作对象
+const packageJson = {
+  name: 'my-extension',
+  contributes: {} as any,
+};
+writer(packageJson);
+```
+
 ### 高级选项
 
 #### 使用 `metadata` 增强 UI
 
 ```typescript
-import { metadata } from '@piying/valibot-visit';
-
 const schema = v.object({
   mode: v.pipe(
     v.picklist(['fast', 'balanced', 'quality']),
-    metadata({
+    v.metadata({
       isOptional: true,
       enumOptions: [
         { label: '快速', description: '最佳性能' },
@@ -139,41 +167,18 @@ const schema = v.object({
 
 #### 虚拟分组
 
-在 VS Code 设置中使用可折叠分组：
+intersect内的object会被合并,允许嵌套合并
 
 ```typescript
 import { asVirtualGroup } from '@piying/valibot-visit';
 
 const schema = v.object({
-  network: asVirtualGroup(
-    v.object({
-      proxy: v.string(),
-      timeout: v.number(),
-    }),
-    '代理设置', // VS Code 中显示的组名
+  network: v.pipe(
+    v.intersect([
+      v.object({ proxy: v.string() }),
+      v.object({ timeout: v.number() }),
+    ]),
+    asVirtualGroup(),
   ),
 });
 ```
-
-### 支持的 Valibot Schema 类型
-
-| Schema 类型 | 支持 | 说明 |
-|-------------|------|------|
-| `v.object` | ✅ | 必填和可选字段 |
-| `v.looseObject` | ✅ | 允许额外属性 |
-| `v.strictObject` | ✅ | 不允许额外属性 |
-| `v.objectWithRest` | ✅ | 支持剩余键的 Schema |
-| `v.array` | ✅ | 任意类型数组 |
-| `v.tuple` / `v.tupleWithRest` | ✅ | 固定长度数组 |
-| `v.record` | ✅ | 键值映射 |
-| `v.union` | ✅ | 多种类型备选 |
-| `v.variant` | ✅ | 判别联合 |
-| `v.intersect` | ✅ | 组合对象类型 |
-| `v.nullable` / `v.nullish` | ✅ | 空值处理 |
-| `v.optional` | ✅ | 可选字段 |
-| `v.pipe` | ✅ | 带转换和约束 |
-| `v.picklist` | ✅ | 枚举选择 |
-| `v.literal` | ✅ | 固定值 |
-| `v.string` / `v.number` / `v.boolean` | ✅ | 原始类型 |
-
-

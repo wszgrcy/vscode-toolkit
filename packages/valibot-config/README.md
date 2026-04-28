@@ -27,11 +27,6 @@ npm install @cyia/vscode-valibot-config
 pnpm add @cyia/vscode-valibot-config
 ```
 
-## Requirements
-
-- VS Code Extension environment (requires `vscode` module)
-- Peer dependencies installed: `valibot`, `static-injector`
-
 ## Usage
 
 ### Basic Example
@@ -89,25 +84,18 @@ Convert Valibot schemas to VSCode `contributes.configuration.properties` format:
 ```typescript
 import * as v from 'valibot';
 import { valibotToVscodeConfig } from '@cyia/vscode-valibot-config';
-import { description, metadata, asVirtualGroup } from '@piying/valibot-visit';
+import { asVirtualGroup } from '@piying/valibot-visit';
 
 const schema = v.object({
-  name: v.pipe(v.string(), description('The user name')),
+  name: v.pipe(v.string(), v.description('The user name')),
   role: v.pipe(
     v.picklist(['admin', 'user']),
-    metadata({
+    v.metadata({
       enumOptions: [
         { label: 'Administrator', description: 'Full access' },
         { label: 'Regular User', description: 'Limited access' },
       ],
     }),
-  ),
-  section: asVirtualGroup(
-    v.object({
-      host: v.string(),
-      port: v.number(),
-    }),
-    'Network Settings',
   ),
 });
 
@@ -117,13 +105,44 @@ const jsonSchema = valibotToVscodeConfig(schema, {
   id: 'myExtension.schema.json',
   order: 1,
 });
+```
 
-// Result can be used in package.json:
+### Writing to `package.json`
+
+Use `writePackageJsonConfig` to automatically write configuration into your VS Code extension's `package.json` file:
+
+```typescript
+import * as v from 'valibot';
+import { writePackageJsonConfig } from '@cyia/vscode-valibot-config';
+
+const schema = v.object({
+  apiKey: v.string(),
+  maxRetries: v.pipe(v.number(), v.minValue(1), v.maxValue(10)),
+});
+
+// Write to file
+const writer = writePackageJsonConfig(schema, {
+  title: 'My Extension Config',
+  prefix: 'myExtension',
+});
+await writer('./package.json');
+// The generated package.json will automatically add:
 // "contributes": {
 //   "configuration": {
-//     "properties": jsonSchema.properties
+//     "title": "My Extension Config",
+//     "properties": {
+//       "myExtension.apiKey": { "type": "string" },
+//       "myExtension.maxRetries": { "type": "number" }
+//     }
 //   }
 // }
+
+// Or manipulate the object directly
+const packageJson = {
+  name: 'my-extension',
+  contributes: {} as any,
+};
+writer(packageJson);
 ```
 
 ### Advanced Options
@@ -131,12 +150,10 @@ const jsonSchema = valibotToVscodeConfig(schema, {
 #### Using `metadata` for Enhanced UI
 
 ```typescript
-import { metadata } from '@piying/valibot-visit';
-
 const schema = v.object({
   mode: v.pipe(
     v.picklist(['fast', 'balanced', 'quality']),
-    metadata({
+    v.metadata({
       isOptional: true,
       enumOptions: [
         { label: 'Fast', description: 'Best performance' },
@@ -148,41 +165,20 @@ const schema = v.object({
 });
 ```
 
-#### Virtual Groups for VSCode Settings UI
+#### Virtual Groups
 
-Group related settings under a collapsible section in VS Code settings:
+Objects inside `intersect` are merged, allowing nested merging:
 
 ```typescript
 import { asVirtualGroup } from '@piying/valibot-visit';
 
 const schema = v.object({
-  network: asVirtualGroup(
-    v.object({
-      proxy: v.string(),
-      timeout: v.number(),
-    }),
-    'Proxy Settings', // Display name in VS Code
+  network: v.pipe(
+    v.intersect([
+      v.object({ proxy: v.string() }),
+      v.object({ timeout: v.number() }),
+    ]),
+    asVirtualGroup(),
   ),
 });
 ```
-
-### Supported Valibot Schemas
-
-| Schema Type                           | Supported | Notes                            |
-| ------------------------------------- | --------- | -------------------------------- |
-| `v.object`                            | ✅        | Required and optional fields     |
-| `v.looseObject`                       | ✅        | Allows additional properties     |
-| `v.strictObject`                      | ✅        | No additional properties allowed |
-| `v.objectWithRest`                    | ✅        | With rest schema for extra keys  |
-| `v.array`                             | ✅        | Arrays of any type               |
-| `v.tuple` / `v.tupleWithRest`         | ✅        | Fixed-length arrays              |
-| `v.record`                            | ✅        | Key-value maps                   |
-| `v.union`                             | ✅        | Multiple type alternatives       |
-| `v.variant`                           | ✅        | Discriminated unions             |
-| `v.intersect`                         | ✅        | Combined object types            |
-| `v.nullable` / `v.nullish`            | ✅        | Null-handling                    |
-| `v.optional`                          | ✅        | Optional fields                  |
-| `v.pipe`                              | ✅        | With transforms and constraints  |
-| `v.picklist`                          | ✅        | Enum-like selections             |
-| `v.literal`                           | ✅        | Fixed values                     |
-| `v.string` / `v.number` / `v.boolean` | ✅        | Primitive types                  |
