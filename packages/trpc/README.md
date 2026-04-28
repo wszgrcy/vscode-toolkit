@@ -2,19 +2,19 @@
 
 <div align="center">
 
-🌐 [English](README.md) | [中文](./README.zh-CN.md)
+🌐 [English](README.md) | [中文](README.zh-CN.md)
 
 </div>
 
-tRPC integration for VS Code Extension-Webview communication, enabling type-safe procedure calls between extension host and webviews.
+tRPC integration for communication between VS Code extension host and Webview, enabling end-to-end type-safe RPC calls.
 
 ## Features
 
-- **Type-safe IPC**: Leverages tRPC's end-to-end type safety for extension-webview communication
-- **IPC Link**: Custom `ipcLink` transport that uses VS Code's postMessage API
-- **Compression Support**: Built-in message compression using snappyjs for efficient data transfer
-- **Subscription Support**: Real-time subscriptions from extension to webview
-- **Context Injection**: Flexible context creation with access to webview instances
+- **Type Safe**: Leverage tRPC's end-to-end type safety with shared Router type definitions between extension host and Webview
+- **IPC Link**: Custom tRPC transport layer based on VS Code `postMessage` API
+- **Message Compression**: Built-in [snappyjs](https://github.com/kubanco/snappyjs) compression support with fine-grained control over which procedures need compression
+- **Subscription Support**: Supports tRPC Subscription (Observable / AsyncGenerator) for real-time bidirectional communication
+- **Flexible Context**: Inject custom context via `createContext` (e.g., webview instance, extension state, etc.)
 
 ## Installation
 
@@ -24,58 +24,184 @@ npm install @cyia/vscode-trpc
 pnpm add @cyia/vscode-trpc
 ```
 
-## Usage
+> **Dependency**: This package requires `@trpc/server` and `@trpc/client` as peer dependencies.
 
-### Server Side (Extension Host)
+## Exports
+
+| Import Path                | Description                          |
+| -------------------------- | ------------------------------------ |
+| `@cyia/vscode-trpc/server` | Server utilities: `createIPCHandler` |
+| `@cyia/vscode-trpc/client` | Client utilities: `ipcLink`          |
+
+---
+
+## Quick Start
+
+### 1. Define Router
+
+First, define the tRPC Router in code shared between extension host and Webview:
 
 ```typescript
-import { createIPCHandler } from '@cyia/vscode-trpc/server';
 import { initTRPC } from '@trpc/server';
 import * as v from 'valibot';
 
 const t = initTRPC.create();
 
-const appRouter = t.router({
-  greet: t.procedure
-    .input(v.object({ name: v.string() }))
-    .query(({ input }) => `Hello, ${input.name}!`),
-});
+export const appRouter = t.router({
+  // Simple query
+  hello: t.procedure.query(() => 'Hello World'),
 
-type AppRouter = typeof appRouter;
+  // Query with input validation
+  getUser: t.procedure
+    .input(v.object({ id: v.string() }))
+    .query(({ input }) => ({ name: 'Alice', id: input.id })),
 
-// Create IPC handler
-const ipcHandler = createIPCHandler<AppRouter>({
-  router: appRouter,
-  createContext: async ({ webview }) => ({
-    // your context here
+  // Nested router
+  posts: t.router({
+    list: t.procedure.query(() => [{ id: 1, title: 'First Post' }]),
   }),
 });
 
-// Register webview
-const panel = vscode.window.createWebviewPanel(...);
-ipcHandler.addWebView(panel.webview);
-
-// Cleanup on dispose
-panel.onDidDispose(() => {
-  ipcHandler.removeWebView(panel.webview);
-});
+export type AppRouter = typeof appRouter;
 ```
 
-### Client Side (Webview)
+> The Router definition file should be located in the module shared between extension host and Webview to ensure end-to-end TypeScript type inference.
+
+### 2. Extension Host — Register IPC Handler
+
+```typescript
+import { Disposable } from 'vscode';
+import { createIPCHandler } from '@cyia/vscode-trpc/server';
+import { appRouter, AppRouter } from './shared/router';
+
+// Create IPC Handler
+const ipcHandler = createIPCHandler<AppRouter>({
+  router: appRouter,
+
+  // Optional: custom context, can access webview instance
+  createContext: async (options) => ({
+    ...options,
+  }),
+});
+
+// When activating extension, register Webview to Handler
+function registerWebviewPanel(context: vscode.ExtensionContext) {
+  const panel = vscode.window.createWebviewPanel(
+    'myPanel',
+    'My Panel',
+    vscode.ViewColumn.One,
+    { enableScripts: true },
+  );
+
+  // Register webview (automatically binds message listener)
+  ipcHandler.addWebView(panel.webview);
+
+  // Can also pass extra context and compression config
+  // ipcHandler.addWebView(panel.webview, { userId: '123' }, { 'posts.list': true });
+
+  panel.onDidDispose(() => {
+    // Remove registration when panel is closed, clean up subscriptions
+    ipcHandler.removeWebView(panel.webview);
+  });
+
+  return panel;
+}
+```
+
+### 3. Webview — Create tRPC Client
 
 ```typescript
 import { createTRPCProxyClient } from '@trpc/client';
 import { ipcLink } from '@cyia/vscode-trpc/client';
-import type { AppRouter } from '../extension'; // share types
+import type { AppRouter } from '../shared/router';
 
+// Create client in Webview
 const trpc = createTRPCProxyClient<AppRouter>({
   links: [ipcLink()],
 });
 
-// Call procedure
-const result = await trpc.greet.query({ name: 'World' });
-console.log(result); // "Hello, World!"
+// Call query
+async function loadHello() {
+  const result = await trpc.hello.query();
+  console.log(result); // 'Hello World'
+}
+
+// Query with input
+async function loadUser() {
+  const user = await trpc.getUser.query({ id: '42' });
+  console.log(user.name); // 'Alice'
+}
+
+// Nested router call
+const posts = await trpc.posts.list.query();
 ```
+
+### 4. Subscribe to Real-time Data
+
+```typescript
+// Define Subscription in extension host's Router
+const appRouter = t.router({
+  counter: t.procedure.subscription(() => {
+    return new Promise((resolve) => {
+      let count = 0;
+      const interval = setInterval(() => {
+        observer.next(count++);
+      }, 1000);
+      resolve({
+        unsubscribe() {
+          clearInterval(interval);
+        },
+      });
+    });
+  }),
+});
+
+// Subscribe in Webview
+const unsubscribe = trpc.counter.subscribe(undefined, {
+  onNext(value) {
+    console.log('Count:', value);
+  }, // Increments every second
+  onError(error) {
+    console.error('Subscription error:', error);
+  },
+  onCompleted() {
+    console.log('Subscription completed');
+  },
+});
+
+// Call unsubscribe() when no longer needed to stop subscription
+```
+
+### 5. Enable Message Compression
+
+#### Server: Response Data Compression
+
+```typescript
+// Specify when calling addWebView
+ipcHandler.addWebView(webview, undefined, {
+  largeQuery: true,
+  'aaa.bbb': true, // Nested router
+});
+```
+
+#### Client: Request Data Compression
+
+```typescript
+// Object compression
+const largeData = await trpc.largeQuery.query(
+  {},
+  {
+    context: { compress: true }, // Mark this request for compression
+  },
+);
+
+// Uint8Array compression
+await trpc.importData.query(new Uint8Array(largeBuffer), {
+  context: { compress: true },
+});
+```
+
+---
 
 ## API Reference
 
@@ -83,73 +209,69 @@ console.log(result); // "Hello, World!"
 
 #### `createIPCHandler<TRouter>(options)`
 
-Creates an IPC handler for managing tRPC procedures in the extension host.
+Create an IPC Handler to manage tRPC procedures in the extension host.
 
-```typescript
-function createIPCHandler<TRouter extends AnyRouter>({
-  createContext?: (opts: CreateContextOptions) => Promise<RouterContext>,
-  router: TRouter,
-}): IPCHandler<TRouter>
-```
+| Parameter        | Type                                               | Description                         |
+| ---------------- | -------------------------------------------------- | ----------------------------------- |
+| `router`         | `TRouter`                                          | tRPC App Router instance (required) |
+| `createContext?` | `(opts: CreateContextOptions) => Promise<Context>` | Optional context factory function   |
 
-**Methods:**
-
-- `addWebView(webview, extraContext?, compressPathObj?)` - Register a webview for handling tRPC requests
-- `removeWebView(webview)` - Unregister and cleanup a webview
-
-**Parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `createContext` | `Function` | Optional async function to create router context |
-| `router` | `TRouter` | The tRPC router instance |
-| `extraContext` | `Record<string, any>` | Additional context to merge into every request |
-| `compressPathObj` | `Record<string, boolean>` | Path-based compression configuration |
-
-#### `CreateContextOptions`
+**CreateContextOptions parameters:**
 
 ```typescript
 interface CreateContextOptions {
-  webview: Webview;
-  [name: string]: any;
+  webview: vscode.Webview; // Webview instance
+  [key: string]: any; // extraContext passed from addWebView
 }
+```
+
+#### `IPCHandler.addWebView(webview, extraContext?, compressPathObj?)`
+
+Register a Webview to handle tRPC requests.
+
+| Parameter          | Type                      | Description                                          |
+| ------------------ | ------------------------- | ---------------------------------------------------- |
+| `webview`          | `vscode.Webview`          | Webview instance to register                         |
+| `extraContext?`    | `Record<string, any>`     | Extra fields to inject into createContext context    |
+| `compressPathObj?` | `Record<string, boolean>` | Enable server response compression by procedure path |
+
+**Compression path configuration example:**
+
+```typescript
+ipcHandler.addWebView(webview, undefined, {
+  largeQuery: true,
+  'aaa.bbb': true, // Nested router
+});
+```
+
+#### `IPCHandler.removeWebView(webview)`
+
+Remove Webview registration and clean up all related subscriptions and listeners.
+
+```typescript
+import { createIPCHandler } from '@cyia/vscode-trpc/server';
+
+// Create Handler
+const handler = createIPCHandler<AppRouter>({
+  router,
+  createContext: async ({ webview, ...ctx }) => ({ ...ctx }),
+});
+
+// Register/Remove Webview
+handler.addWebView(webview, extraContext?, compressPaths?);
+handler.removeWebView(webview);
 ```
 
 ### Client
 
-#### `ipcLink<TRouter>(options?)`
-
-Returns a tRPC link that communicates with the extension host via VS Code's postMessage API.
-
 ```typescript
-function ipcLink<TRouter extends AnyRouter>(
-  opts?: TransformerOptions
-): TRPCLink<TRouter>
-```
+import { ipcLink } from '@cyia/vscode-trpc/client';
 
-**Parameters:**
+// Optional: Configure Transformer (custom serialization/deserialization)
+ipcLink({ transformer: myTransformer });
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `transformer` | `TransformerOptions` | Optional input/output transformers for data serialization |
-
-## Compression
-
-Messages can be compressed using snappyjs to reduce payload size:
-
-- **Client-side**: Set `compress: true` in procedure context to compress request inputs
-- **Server-side**: Configure `compressPathObj` to compress specific procedure responses
-
-```typescript
-// Client - compress input
-await trpc.largeProcedure.mutate(data, {
-  context: { compress: true },
-});
-
-// Server - compress output for specific paths
-ipcHandler.addWebView(webview, undefined, {
-  'largeProcedure': true,
-  'nested.procedure': true,
+// Use in tRPC client
+const trpc = createTRPCProxyClient<AppRouter>({
+  links: [ipcLink()],
 });
 ```
-
