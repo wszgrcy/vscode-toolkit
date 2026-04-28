@@ -1,0 +1,17 @@
+{
+  "name": "vscode-valibot-config-test",
+  "displayName": "VSCode Valibot Config Test",
+  "version": "0.0.1",
+  "description": "A test extension for vscode valibot-config",
+  "publisher": "test",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [],
+  "activationEvents": [],
+  "main": "./index.js",
+  "contributes": {},
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {}
+}

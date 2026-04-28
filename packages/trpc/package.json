@@ -1,0 +1,51 @@
+{
+  "name": "@cyia/vscode-trpc",
+  "version": "0.0.0",
+  "description": "tRPC integration for VS Code Extension-Webview communication",
+  "module": "esm",
+  "type": "module",
+  "scripts": {
+    "test:build": "rimraf -g ./test-dist && tsx ./script/test.esbuild.ts",
+    "test": "rimraf -g ./test-dist && tsx ./script/test.esbuild.ts && vscode-test",
+    "coverage": "rimraf -g ./test-dist && tsx ./script/test.esbuild.ts && vscode-test --coverage"
+  },
+  "author": "wszgrcy",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wszgrcy/vscode-toolkit",
+    "directory": "packages/trpc"
+  },
+  "homepage": "https://github.com/wszgrcy/vscode-toolkit/tree/main/packages/trpc#readme",
+  "bugs": {
+    "url": "https://github.com/wszgrcy/vscode-toolkit/issues"
+  },
+  "keywords": [
+    "vscode",
+    "trpc",
+    "ipc",
+    "webview",
+    "extension",
+    "type-safe"
+  ],
+  "exports": {
+    "./client": {
+      "types": "./client/index.d.ts",
+      "import": "./client/index.mjs"
+    },
+    "./server": {
+      "types": "./server/index.d.ts",
+      "import": "./server/index.mjs"
+    }
+  },
+  "dependencies": {
+    "snappyjs": "^0.7.0"
+  },
+  "devDependencies": {
+    "@types/snappyjs": "^0.7.1"
+  },
+  "peerDependencies": {
+    "@trpc/client": "^11.16.0",
+    "@trpc/server": "^11.16.0"
+  }
+}

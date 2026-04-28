@@ -1,0 +1,12 @@
+node_modules
+/test-dist/packages
+/dist
+/test-dist/**/*.js
+/test-dist/**/*.mjs
+/test-dist/**/*.js.map
+/test-dist/**/*.mjs.map
+/coverage
+/.tmp
+test-dist
+.vscode-test
+coverage

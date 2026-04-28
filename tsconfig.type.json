@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.build.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true,
+    "rootDir": "./packages"
+  },
+  "files": [],
+  "include": [
+    "./packages/*/index.ts",
+    "./packages/trpc/client/index.ts",
+    "./packages/trpc/server/index.ts",
+    "./packages/trpc/client/typing.d.ts"
+  ],
+}

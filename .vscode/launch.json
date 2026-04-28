@@ -1,0 +1,40 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Extension: valibot-config",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "${workspaceFolder}/packages/valibot-config/test/fixture",
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/valibot-config/test-dist",
+                "--disable-extensions",
+                "--extensionTestsPath=${workspaceFolder}/packages/valibot-config/test-dist/test/index",
+            ],
+            "outFiles": [
+                "${workspaceFolder}/packages/valibot-config/test-dist/**/*.js"
+            ],
+            "preLaunchTask": "npm: test:build - packages/valibot-config",
+            "cwd": "${workspaceFolder}/packages/valibot-config"
+        },
+        {
+            "name": "Run Extension: trpc",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+                "${workspaceFolder}/packages/trpc/test/fixture",
+                "--extensionDevelopmentPath=${workspaceFolder}/packages/trpc/test-dist",
+                "--disable-extensions",
+                "--extensionTestsPath=${workspaceFolder}/packages/trpc/test-dist/test/index",
+            ],
+            "outFiles": [
+                "${workspaceFolder}/packages/trpc/test-dist/**/*.js"
+            ],
+            "preLaunchTask": "npm: test:build - packages/trpc",
+            "cwd": "${workspaceFolder}/packages/trpc"
+        }
+    ],
+    "compounds": []
+}

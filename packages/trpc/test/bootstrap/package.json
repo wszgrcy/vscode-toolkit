@@ -1,0 +1,17 @@
+{
+  "name": "vscode-trpc-test",
+  "displayName": "VSCode TRPC Test",
+  "version": "0.0.1",
+  "description": "A test extension for vscode trpc",
+  "publisher": "test",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [],
+  "activationEvents": [],
+  "main": "./index.js",
+  "contributes": {},
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {}
+}

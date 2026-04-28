@@ -1,0 +1,15 @@
+{
+  "extension": [
+    ".ts"
+  ],
+  "reporter": [
+    "html",
+    "text"
+  ],
+  "exclude": [
+    "**/*.spec.ts",
+    "script"
+  ],
+  "exclude-after-remap": true,
+  "all": false
+}

@@ -1,0 +1,34 @@
+name: publish
+on:
+  push:
+    branches:
+      - 'main'
+      - 'alpha'
+permissions:
+  id-token: write
+  contents: write
+env:
+  PUBLISH_TAG: ${{ github.ref_name == 'main' && 'latest' || 'alpha' }}
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: init
+        run: |
+          git config --global user.name "${GITHUB_ACTOR}"
+          git config --global user.email "${GITHUB_ACTOR}@gmail.com"
+      - uses: actions/checkout@v6
+      - name: install-node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          registry-url: 'https://registry.npmjs.org'
+      - name: install-pnpm
+        uses: pnpm/action-setup@v4
+
+      - run: pnpm i
+      - name: build
+        run: npm run build
+      - name: test
+        run: npm run test
+      - run: npm run publish-only
