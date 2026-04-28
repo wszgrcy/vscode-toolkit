@@ -1,5 +1,5 @@
 {
-  "name": "cyia-template",
+  "name": "vscode-toolkit",
   "version": "1.0.7",
   "repository": {
     "type": "git",
@@ -9,8 +9,8 @@
     "test": "pnpm -r --if-present test",
     "build": "rimraf ./dist && tsx ./script/build.esbuild.ts && tsc -P ./tsconfig.type.json ",
     "coverage": "pnpm -r --if-present coverage",
-    "local-publish": "npm run build && npm --registry=http://lan-server.chloc:5555 publish ./dist/valibot-config && npm --registry=http://lan-server.chloc:5555 publish ./dist/trpc",
-    "lint": "eslint --fix ./packages/**/*.ts && prettier ./packages/**/*.ts --write"
+    "lint": "eslint --fix ./packages/**/*.ts && prettier ./packages/**/*.ts --write",
+    "publish-only": "tsx ./script/publish.ts"
   },
   "author": "wszgrcy",
   "license": "ISC",
@@ -27,6 +27,7 @@
     "esbuild": "^0.28.0",
     "esbuild-plugin-copy": "^2.1.1",
     "eslint-plugin-unused-imports": "^4.2.0",
+    "execa": "^9.6.1",
     "fast-glob": "^3.3.3",
     "globals": "^16.0.0",
     "mocha": "^11.7.4",

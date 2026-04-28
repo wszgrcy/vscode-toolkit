@@ -20,5 +20,5 @@ jobs:
         run: npm run test
       - name: coverage
         run: npm run coverage
-      - name: Coveralls
-        uses: coverallsapp/github-action@v2
+      # - name: Coveralls
+      #   uses: coverallsapp/github-action@v2
