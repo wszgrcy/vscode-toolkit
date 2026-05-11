@@ -5,9 +5,13 @@ import { getDefaults } from '@piying/valibot-visit';
 import { signal, WritableSignal } from 'static-injector';
 import rfdc from 'rfdc';
 import { set } from 'es-toolkit/compat';
-
 const clone = rfdc();
-type ConfigSignal<T> = WritableSignal<NonNullable<T>>;
+type OutputSignal<T> = () => T;
+type InputSignal<TInput, TOutput> = {
+  set(value: TInput): void;
+  update(updateFn: (value: TOutput) => TInput): void;
+};
+type ConfigSignal<T> = InputSignal<T, T> & OutputSignal<T>;
 type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
   x: infer R,
 ) => void
