@@ -5,6 +5,8 @@ import { getDefaults } from '@piying/valibot-visit';
 import { signal, WritableSignal } from 'static-injector';
 import rfdc from 'rfdc';
 import { set } from 'es-toolkit/compat';
+type BaseSchema = v.BaseSchema<any, any, any>;
+
 const clone = rfdc();
 type OutputSignal<T> = () => T;
 type InputSignal<TInput, TOutput> = {
@@ -19,7 +21,7 @@ type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
     ? R
     : never
   : never;
-export type ResolveConfig<T extends Record<string, any>> = {
+export type ResolveConfig<T extends BaseSchema> = {
   [P in keyof T]-?: NonNullable<T[P]> extends object
     ? ResolveConfig<UnionToIntersection<NonNullable<T[P]>>> & ConfigSignal<T[P]>
     : ConfigSignal<T[P]>;
@@ -35,7 +37,6 @@ type ObjectSchema =
   | v.LooseObjectSchema<any, any>
   | v.StrictObjectSchema<any, any>
   | v.ObjectWithRestSchema<any, any, any>;
-type BaseSchema = v.BaseSchema<any, any, any>;
 function isObject(input: any): input is ObjectSchema {
   return (
     v.isOfType('object', input as any) ||
@@ -179,7 +180,7 @@ export class ConfigProxy<T extends BaseSchema> {
     return proxy;
   }
   root() {
-    return this.#get([]) as ResolveConfig<v.InferOutput<T>>;
+    return this.#get([]) as ResolveConfig<T>;
   }
   dispose() {
     this.#dispose?.dispose();

@@ -9,4 +9,10 @@ export const TestConfigDefine = v.object({
   uni1: v.optional(
     v.union([v.object({ k1: v.string() }), v.object({ k2: v.string() })]),
   ),
+  trans1: v.pipe(
+    v.number(),
+    v.transform((a) => {
+      return `${a}`;
+    }),
+  ),
 });

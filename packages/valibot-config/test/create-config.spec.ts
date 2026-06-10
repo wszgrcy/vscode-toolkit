@@ -8,7 +8,7 @@ const TEST_SUFFIX = Date.now().toString(36);
 describe('createConfig', () => {
   let vsConfig: vscode.WorkspaceConfiguration;
   let proxy: ConfigProxy<typeof TestConfigDefine>;
-  let freshConfig: ResolveConfig<v.InferOutput<typeof TestConfigDefine>>;
+  let freshConfig: ResolveConfig<typeof TestConfigDefine>;
 
   beforeEach(async () => {
     vsConfig = vscode.workspace.getConfiguration('test');
