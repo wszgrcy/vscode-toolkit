@@ -7,7 +7,7 @@
   },
   "packageManager": "pnpm@10.4.1",
   "scripts": {
-    "test": "pnpm -r --if-present test",
+    "test": "tsc -P ./tsconfig.type.json --noEmit && pnpm -r --if-present test",
     "build": "rimraf ./dist && tsx ./script/build.esbuild.ts && tsc -P ./tsconfig.type.json ",
     "coverage": "pnpm -r --if-present coverage",
     "lint": "eslint --fix ./packages/**/*.ts && prettier ./packages/**/*.ts --write",
